@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <h1>State Management using DOM Events</h1>
+    <div data-state='{ "count": 0, "other": "foo" }'>
+        <p data-onstateupdated="this.innerText = JSON.stringify(state)"></p>
+        <h2>Nested Controls</h2>
+        <ul>
+            <li>
+                <button onclick="IncrementBy.call(this, 1)">Increment</button>
+            </li>
+            <li>
+                <button onclick="IncrementBy.call(this, -1)">Decrement</button>
+            </li>
+            <li data-onstateupdated='this.innerText = "The count is " + state.count'>
+                Loading...
+            </li>
+        </ul>
+        <h2>Nested State Management using DOM Events</h2>
+        <div data-state='{ "count": 10, "other": "bar"}'>
+            <p data-onstateupdated="this.innerText = JSON.stringify(state)"></p>
+            <button onclick="IncrementBy.call(this, 1)">Increment</button>
+            <button onclick="IncrementBy.call(this, -1)">Decrement</button>
+        </div>
+        <p data-onstateupdated="this.innerText = state.count * 2"></p>
+        <p data-onstateupdated="console.info(`State Updated: %o`, state)">Check the console to see a demonstration of calling a JS function</p>
+    </div>
+    <script>
+        function IncrementBy(increment) {
+            this.dispatchEvent(
+                new CustomEvent('updateState', {
+                    detail: state => ({ ...state, count: state.count + increment }),
+                    bubbles: true,
+                    cancelable: true,
+                    composed: true })
+            )
+        }
+
+        function updateState(store, state) {
+            for (let subscriber of store.querySelectorAll('[data-onstateupdated]')) {
+                if (subscriber.closest('[data-state]') != store) continue
+                const handler = subscriber.getAttribute('data-onstateupdated')
+                let f = new Function('state', handler)
+                f.call(subscriber, state)
+            }
+        }
+
+        function initializeStores() {
+            for (let store of document.body.querySelectorAll('[data-state]'))
+            {
+                store.state = JSON.parse(store.getAttribute('data-state'))
+                updateState(store, store.state)
+                store.addEventListener('updateState', e => {
+                    e.stopPropagation()
+                    store.state = e.detail(store.state)
+                    updateState(store, store.state)
+                })
+            }
+        }
+
+        initializeStores()
+    </script>
+
+</body>
+</html>
